@@ -4,20 +4,20 @@
   vars:
     image_name: csi.ibm.com/ibm-spectrum-scale-csi-operator:testing
   tasks:
-  # using command so we don't need to install any dependencies
-  - name: Get existing image hash
-    command: docker images -q {{ image_name }}
-    register: prev_hash
-    changed_when: false
+    # using command so we don't need to install any dependencies
+    - name: Get existing image hash
+      command: docker images -q {{ image_name }}
+      register: prev_hash
+      changed_when: false
 
-  - name: Check if CI
-    set_fact:
-      CI: lookup('env', 'CI')
+    - name: Check if CI
+      set_fact:
+        CI: lookup('env', 'CI')
 
-  - name: Build Operator Image
-    command: docker build -f /build/build/Dockerfile -t {{ image_name }} /build
-    register: build_cmd
-    changed_when: not prev_hash.stdout or (prev_hash.stdout and prev_hash.stdout not in ''.join(build_cmd.stdout_lines[-2:]))
+    - name: Build Operator Image
+      command: docker build -f /build/build/Dockerfile -t {{ image_name }} /build
+      register: build_cmd
+      changed_when: not prev_hash.stdout or (prev_hash.stdout and prev_hash.stdout not in ''.join(build_cmd.stdout_lines[-2:]))
 
 - name: Converge
   hosts: localhost
@@ -29,7 +29,7 @@
     REPLACE_IMAGE: csi.ibm.com/ibm-spectrum-scale-csi-operator:testing
     custom_resource: "{{ lookup('file', '/'.join([deploy_dir, 'crds/csiscaleoperators.csi.ibm.com.cr.yaml'])) | from_yaml }}"
   tasks:
-  - block:
+  block:
     - name: Delete the Operator Deployment
       k8s:
         state: absent
@@ -59,10 +59,10 @@
 
     - name: Create the operator secret
       k8s:
-        state:  present
-        definition: 
+        state: present
+        definition:
           apiVersion: "v1"
-          kind:  "Secret"
+          kind: "Secret"
           metadata:
             name: "{{ secret_name }}"
             namespace: "{{ namespace }}"
@@ -73,8 +73,8 @@
           labels:
             app.kubernetes.io/name: ibm-spectrum-scale-csi-operator
       vars:
-        secret_pass: "cGFzc3dvcMq=" # "password"
-        secret_user: "dXNlcm5hbwu=" # "username"
+        secret_pass: "cGFzc3dvcMq="  # "password"
+        secret_user: "dXNlcm5hbwu="  # "username"
         secret_name: "secret1"
 
     - name: Create the csi.ibm.com/v1.CSIScaleOperator
@@ -94,12 +94,10 @@
         name: '{{ custom_resource.metadata.name }}'
       register: cr
       until:
-      - "'Successful' in (cr | json_query('resources[].status.conditions[].reason'))"
+        - "'Successful' in (cr | json_query('resources[].status.conditions[].reason'))"
       delay: 6
       retries: 40
-
-
-    rescue:
+  rescue:
     - name: debug cr
       ignore_errors: yes
       failed_when: false
@@ -112,7 +110,7 @@
           namespace=namespace,
           resource_name=custom_resource.metadata.name
         )}}'
-    
+
     - name: Get Operator Pod
       set_fact:
         op_pod: '{{ lookup("k8s",
@@ -129,12 +127,12 @@
 
         )}}'
 
-    - name : debug pods lookup
+    - name: debug pods lookup
       ignore_errors: yes
       failed_when: false
       debug:
         var: pods
- 
+
 
     - name: Get operator ansible logs
       ignore_errors: yes
@@ -164,13 +162,12 @@
       vars:
         debug_api_groups: "{{ lookup('k8s', cluster_info='api_groups') }}"
 
-    - debug: 
+    - debug:
         msg: "kubectl logs {{ op_pod.metadata.name }} -n {{ namespace }} ansible"
 
     - fail:
         msg: "Failed on action: converge"
-  - include_tasks: '{{ playbook_dir }}/../default/tests/basic_tests.yaml'
+
+    - include_tasks: '{{ playbook_dir }}/../default/tests/basic_tests.yaml'
 
 - import_playbook: '{{ playbook_dir }}/../default/asserts.yml'
-
-
