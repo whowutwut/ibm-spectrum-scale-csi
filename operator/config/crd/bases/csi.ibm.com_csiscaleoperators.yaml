@@ -25,6 +25,9 @@ spec:
       description: The Nginx Status
       name: Ready
       type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     schema:
      openAPIV3Schema:
       description: CSIScaleOperator is the Schema for the csiscaleoperator API
